@@ -1,34 +1,39 @@
 import streamlit as st
-import numpy as np
-from tensorflow.keras.models import load_model
+import tensorflow as tf
 from tensorflow.keras.preprocessing import image
+import numpy as np
+from PIL import Image
 
-# Load the trained CNN model
-cnn = load_model("./model.pkl")
+# Load the saved model
+model = tf.keras.models.load_model('leprosy_detection_model.h5')
 
-# Define the Streamlit app
-st.title("Binary Image Classification")
-st.write("This app classifies images as 'yes' or 'no'.")
+# Define a function for prediction
+def predict_leprosy(uploaded_image):
+    img = uploaded_image.resize((64, 64))  # Resize image to match model input size
+    img_array = image.img_to_array(img)  # Convert image to a numpy array
+    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+    img_array /= 255.0  # Normalize the image
+    
+    prediction = model.predict(img_array)[0][0]
+    if prediction >= 0.5:
+        return "Not Leprosy", prediction
+    else:
+        return "Leprosy", prediction
 
-# File upload
-uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
+# Streamlit App
+st.title("Leprosy Detection App")
+st.write("Upload an image to detect if it shows signs of leprosy.")
+
+# File uploader
+uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     # Display the uploaded image
-    st.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
-
-    # Preprocess the uploaded image
-    img = image.load_img(uploaded_file, target_size=(64, 64))
-    img_array = image.img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0)
-
-    # Predict the class
-    result = cnn.predict(img_array)
+    image_data = Image.open(uploaded_file)
+    st.image(image_data, caption="Uploaded Image", use_column_width=True)
     
-    if result[0][0] == 1:
-        prediction = "no"
-    else:
-        prediction = "yes"
-    
-    # Display the result
-    st.write(f"Prediction: {prediction}")
+    # Predict
+    st.write("Analyzing...")
+    label, confidence = predict_leprosy(image_data)
+    st.write(f"Prediction: **{label}**")
+    st.write(f"Confidence: **{confidence:.2f}**")
